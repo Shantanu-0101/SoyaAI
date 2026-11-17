@@ -1,0 +1,85 @@
+# ---------------------------------------------------------------------------
+# SoyaAI configuration. Every modelling choice that you may want to change
+# lives here, so the notebook and the Streamlit app read one source of truth.
+# ---------------------------------------------------------------------------
+seed: 42
+
+paths:
+  raw_comtrade:
+    "1507": data/raw/comtrade_1507     # soybean oil and its fractions
+    "1201": data/raw/comtrade_1201     # soybean seed
+  raw_sopa: data/raw/sopa/export_data_2026-11-16.xlsx
+  duty_events: data/raw/external/duty_events_crude_soyoil.csv
+  market_cache: data/raw/external/market_daily.csv
+  processed: data/processed
+  figures: outputs/figures
+  tables: outputs/tables
+  forecasts: outputs/forecasts
+
+# ---------------- Model A: monthly imports --------------------------------
+model_a:
+  target_hs: "1507"           # "1507" (oil, recommended) or "1201" (seed)
+  transform: none             # none | log | log1p   (backtest in notebook section 3 chose none)
+  start: "2011-01"            # first month used for modelling
+  end: "2026-08"              # last complete Comtrade month
+  seasonal_period: 12
+  horizons: [1, 3, 6, 12]
+  cv_initial_months: 120      # first training window (10 years)
+  cv_step: 1                  # move origin forward 1 month at a time
+  forecast_steps: 12
+  # Candidate (p,d,q)(P,D,Q,s) orders: shortlist from auto_arima + AIC/BIC grid
+  # (notebook section 5). Rolling-origin CV picks the winner.
+  candidate_orders:
+    - [[0, 1, 1], [0, 1, 1, 12]]   # "airline" model, best BIC
+    - [[0, 1, 2], [0, 1, 1, 12]]   # best AIC
+    - [[1, 1, 2], [2, 1, 0, 12]]   # auto_arima (stepwise) choice
+  # Exogenous sets, {variable: lag in months}. Lags justified in notebook section 4.
+  exog_sets:
+    oil_rate: {oil_rate: 2}                          # the Model B -> Model A link
+    margin: {margin: 3}                              # oil rate vs landed import cost
+    margin_events: {margin: 3, covid: 0, ukraine: 0}
+  # How each driver is forecast after the forecast origin (leak-free):
+  # "last" = no change (default), "ar1" = its own mean-reverting AR(1)
+  exog_forecast: {margin: ar1, oil_rate: last}
+  # weight of a month with missing net weight is imputed from value / unit price
+  impute_window: 2            # months on each side for the unit-price average
+
+# ---------------- Model B: daily oil rate ---------------------------------
+model_b:
+  start: "2020-06-17"         # first date after the COVID data gap
+  end: "2026-10-31"
+  freq: B                     # Mon-Fri business days
+  ffill_limit: 3              # holidays filled for at most 3 business days
+  outlier_threshold: 0.08     # |value / 11-day rolling median - 1|
+  max_spread: 50              # Rs; wider low-high ranges are treated as typos
+  horizons: [1, 5, 20]
+  cv_origins: 150             # number of rolling origins
+  cv_step: 5                  # business days between origins (150 x 5 = ~3 years)
+  forecast_steps: 30
+  candidate_orders:
+    - [0, 1, 0]   # random walk (+ drivers): best BIC with exogenous variables
+    - [1, 1, 1]   # best AIC/BIC without drivers
+    - [2, 1, 1]   # best AIC with drivers
+  exog_sets:
+    cbot_brent: {cbot_soyoil: 1, brent: 1}
+    full: {cbot_soyoil: 1, brent: 1, usdinr: 1, duty: 0, ukraine: 0}
+
+# ---------------- External market data (yfinance) -------------------------
+market:
+  enabled: true
+  tickers:
+    usdinr: "INR=X"
+    brent: "BZ=F"
+    cbot_soyoil: "ZL=F"
+  start: "2010-12-01"
+  end: "2026-11-01"
+
+# ---------------- Dummies --------------------------------------------------
+events:
+  covid_lockdown: ["2020-03-25", "2020-05-31"]   # national lockdown phases 1-4
+  ukraine_shock: ["2022-02-24", "2022-06-30"]    # sunflower-oil supply shock
+
+# ---------------- Scenarios ------------------------------------------------
+scenarios:
+  price_shock: [-0.10, 0.10]   # +/-10% on the exogenous oil price path
+  duty_cut_points: 5.5         # effective duty cut in percentage points

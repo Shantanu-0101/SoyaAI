@@ -1,0 +1,8 @@
+test,H0,stat,p_value,reject_at_5%
+Ljung-Box lag 5,no autocorrelation,24.55027962715988,0.00017013727851998016,True
+Ljung-Box lag 10,no autocorrelation,43.01917578998496,4.933921071855754e-06,True
+Ljung-Box lag 20,no autocorrelation,47.626381588312796,0.00047985053670062994,True
+Jarque-Bera,residuals normal,11533.674440976507,0.0,True
+ARCH-LM,constant variance (no ARCH),40.002056023522364,7.185235856765029e-05,True
+Break-variance (1st vs last third),equal variance,0.4197672547004975,8.520708100157835e-24,True
+OLS-CUSUM,no structural break,0.7905031763890924,0.5596684971006582,False
