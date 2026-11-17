@@ -1,6 +1,6 @@
 # SoyaAI: forecasting India's soybean oil imports and the Indore soybean oil rate
 
-Final-year AI project. ARIMAX / SARIMAX time-series forecasting with exogenous drivers.
+ARIMAX / SARIMAX time-series forecasting with exogenous drivers.
 
 * **Model A (monthly):** India's soybean oil imports (UN Comtrade HS 1507, tonnes), SARIMAX with s = 12, 12-month forecast.
 * **Model B (daily):** SOPA refined soybean oil rate, Indore (Rs per 10 kg), ARIMAX, 30-trading-day forecast.
